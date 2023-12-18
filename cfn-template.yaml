@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  This CloudFormation Template was written for running Kittens Carousel Static Website on EC2. 
-  Kittens Carousel Static Website will be deployed on Amazon Linux 2023 EC2 Instance with custom 
-  security group which allows http connections on port 80 and ssh port 22 from anywhere. Kittens Carousel Static Website
-  is downloaded from my Public Github repository, then deployed on Apache Web Server.
+  CloudFormation Template for Roman Numerals Converter Application. 
+  This template creates Python Flask Web Application on Amazon Linux 2023  
+  EC2 Instance with custom security group allowing http connections on port 80, 8080 and SSH connection on port 22. 
+  Roman Numerals Converter Application is downloaded from Github repository, then installed on Flask.
 Parameters:
   imageID:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
@@ -23,61 +23,57 @@ Parameters:
       - t2.large
 
 Resources:
-  
-  myWebServer:
+
+
+
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Enable HTTP for Flask Web Server and SSH port to secure reach to my EC2
+      GroupName: yaman-roman-number-converter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp #required
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+
+  WebServerHost:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !Ref imageID
+      ImageId: !Ref LatestAmiId
       InstanceType: !Ref instanceType
-      KeyName: !Ref keyPair
-      SecurityGroupIds: 
-        - !Ref mySecGrp # !GetAtt mySecGrp.GroupId
-      Tags: 
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      Tags:
         - Key: Name
-          Value: !Sub ${AWS::StackName}
+          Value: !Sub Web Server of ${AWS::StackName} Stack 
       UserData: !Base64 |
         #! /bin/bash
         dnf update -y
-        dnf install httpd -y
-        FOLDER="https://raw.githubusercontent.com/yaman5891/kitten58/main/static-web"
-        cd /var/www/html
-        wget ${FOLDER}/index.html
-        wget ${FOLDER}/cat0.jpg
-        wget ${FOLDER}/cat1.jpg
-        wget ${FOLDER}/cat2.jpg
-        wget ${FOLDER}/cat3.png
-        systemctl start httpd
-        systemctl enable httpd
+        dnf install python3 -y
+        dnf install python3-pip -y
+        pip3 install flask
+        dnf install git -y
+        FOLDER="https://raw.githubusercontent.com/yaman5891/roman-numerals-converter/main/templates"
+        cd /home/ec2-user
+        wget -P templates ${FOLDER}/templates/index.html
+        wget -P templates ${FOLDER}/templates/result.html
+        wget ${FOLDER}/roman-numerals-converter-app.py
+        python3 roman-numerals-converter-app.py
 
-  mySecGrp:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: ssh and http # Required
-      GroupName: yaman-kitten-project-scgrp
-      SecurityGroupIngress: 
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
 
-Outputs:
-  webSiteURL:
-    Description: URL of website
-    Value: !Sub
-      - http://${PublicDNS}
-      - PublicDNS: !GetAtt myWebServer.PublicDnsNameAWSTemplateFormatVersion: 2010-09-09
-Description: |
-
-Resources:
-  
 Outputs: 
-  
-
-
-
-
-
-
-
-
-
+  WebsiteURL:
+    Value: !Sub 
+      - http://${PIA}
+      - PIA: !GetAtt WebServerHost.PublicDnsName
+    Description: Roman Numerals Converter Application URL
